@@ -16,7 +16,7 @@
 
 extern bool g_isDevice;
 
-bool ReadFile(const std::string &filePath, size_t fileSize, void *buffer, size_t bufferSize)
+bool ReadFile(const std::string &filePath, size_t &fileSize, void *buffer, size_t bufferSize)
 {
     struct stat sBuf;
     int fileStatus = stat(filePath.data(), &sBuf);

@@ -31,7 +31,7 @@
  * @param [out] fileSize: file size
  * @return read result
  */
-bool ReadFile(const std::string &filePath, size_t fileSize, void *buffer, size_t bufferSize);
+bool ReadFile(const std::string &filePath, size_t &fileSize, void *buffer, size_t bufferSize);
 
 /**
  * @brief Write data to file

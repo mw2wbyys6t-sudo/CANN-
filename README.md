@@ -104,12 +104,11 @@ cd build_out
 ### 4. 端到端调用验证（可选，需真实昇腾环境）
 
 ```bash
-cd /workspace/test/AclNNInvocation
-python3 scripts/gen_data.py          # 生成输入与 golden 数据
-./run.sh -v float16                  # 编译并运行，自动比对精度
+cd test/AclNNInvocation
+./run.sh
 ```
 
-运行成功会输出 `you have passed the Precision!`。
+`run.sh` 会自动「生成数据 → 运行算子 → 比对精度」，并覆盖完整测试矩阵（float16/float32、1~4 维、非对齐、N=1/10240 边界、边界数值）。全部通过会输出 `you have passed the Precision!`。详见 [test/AclNNInvocation/README.md](file:///workspace/test/AclNNInvocation/README.md)。
 
 ---
 

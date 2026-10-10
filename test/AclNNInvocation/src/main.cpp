@@ -6,9 +6,19 @@
 * This program is distributed in the hope that it will be useful,
 * but WITHOUT ANY WARRANTY; without even the implied warranty of
 * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+*
+* 单算子（aclnn）调用入口。
+* 用法：
+*     ./execute_op <float16|float32> <dim0> [dim1 dim2 ...]
+* 例如：
+*     ./execute_op float32 2 3 17
+*     ./execute_op float16 1 1029
 */
 #include <cstdint>
+#include <cstdlib>
 #include <iostream>
+#include <string>
+#include <vector>
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -21,23 +31,57 @@
 bool g_isDevice = false;
 int deviceId = 0;
 
-OperatorDesc CreateOpDesc()
+namespace {
+std::vector<int64_t> g_shape;
+aclDataType g_dtype = ACL_FLOAT16;
+std::string g_dtypeName = "float16";
+
+bool ParseArgs(int argc, char **argv)
 {
-    // define operator
-    std::vector<int64_t> shape {1,32};
-    std::vector<int64_t> shape_out {1,32};
-    aclDataType dataType = ACL_FLOAT16;
+    if (argc < 3) {
+        ERROR_LOG("Usage: %s <float16|float32> <dim0> [dim1 ...]", argv[0]);
+        return false;
+    }
+    g_dtypeName = argv[1];
+    if (g_dtypeName == "float16") {
+        g_dtype = ACL_FLOAT16;
+    } else if (g_dtypeName == "float32") {
+        g_dtype = ACL_FLOAT;
+    } else {
+        ERROR_LOG("Unsupported dtype: %s (only float16 / float32)", argv[1]);
+        return false;
+    }
+    for (int i = 2; i < argc; ++i) {
+        int64_t dim = std::strtoll(argv[i], nullptr, 10);
+        if (dim <= 0) {
+            ERROR_LOG("Invalid dim: %s", argv[i]);
+            return false;
+        }
+        g_shape.push_back(dim);
+    }
+    if (g_shape.empty()) {
+        ERROR_LOG("At least one dim is required");
+        return false;
+    }
+    return true;
+}
+} // namespace
+
+void CreateOpDesc(OperatorDesc &opDesc)
+{
     aclFormat format = ACL_FORMAT_ND;
-    OperatorDesc opDesc;
-    opDesc.AddInputTensorDesc(dataType, shape.size(), shape.data(), format);
-    opDesc.AddOutputTensorDesc(dataType, shape_out.size(), shape_out.data(), format);
-    return opDesc;
+    opDesc.AddInputTensorDesc(g_dtype, static_cast<int>(g_shape.size()), g_shape.data(), format);
+    opDesc.AddOutputTensorDesc(g_dtype, static_cast<int>(g_shape.size()), g_shape.data(), format);
 }
 
 bool SetInputData(OpRunner &runner)
 {
     size_t fileSize = 0;
     ReadFile("../input/input_x.bin", fileSize, runner.GetInputBuffer<void>(0), runner.GetInputSize(0));
+    if (fileSize != runner.GetInputSize(0)) {
+        ERROR_LOG("input file size(%zu) mismatch tensor size(%zu)", fileSize, runner.GetInputSize(0));
+        return false;
+    }
     INFO_LOG("Set input success");
     return true;
 }
@@ -113,7 +157,8 @@ bool InitResource()
 bool RunOp()
 {
     // create op desc
-    OperatorDesc opDesc = CreateOpDesc();
+    OperatorDesc opDesc;
+    CreateOpDesc(opDesc);
 
     // create Runner
     OpRunner opRunner(&opDesc);
@@ -146,6 +191,17 @@ bool RunOp()
 
 int main(int argc, char **argv)
 {
+    if (!ParseArgs(argc, argv)) {
+        return FAILED;
+    }
+
+    std::string shapeStr;
+    for (size_t i = 0; i < g_shape.size(); ++i) {
+        shapeStr += std::to_string(g_shape[i]);
+        shapeStr += (i + 1 == g_shape.size()) ? "" : "x";
+    }
+    INFO_LOG("Run Gelu op: dtype=%s shape=[%s]", g_dtypeName.c_str(), shapeStr.c_str());
+
     if (!InitResource()) {
         ERROR_LOG("Init resource failed");
         return FAILED;

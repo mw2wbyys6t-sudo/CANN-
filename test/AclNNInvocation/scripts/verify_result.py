@@ -1,23 +1,71 @@
-import os
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+精度比对脚本（仅依赖 Python 标准库）。
+
+用法：
+    python3 verify_result.py <real_result.bin> <golden.bin> <float16|float32>
+
+判定标准（allclose 风格，逐元素）：
+    |real - golden| <= atol + rtol * |golden|
+    float32  rtol = atol = 1e-4
+    float16  rtol = atol = 1e-3
+"""
+
+import struct
 import sys
-import numpy as np
 
-loss = 1e-3 # 容忍偏差，一般fp16要求绝对误差和相对误差均不超过千分之一
-minimum = 10e-10
+TOL = {'float16': 1e-3, 'float32': 1e-4}
 
-def verify_result(real_result, golden):
-    real_result = np.fromfile(real_result, dtype=np.float16) # 从bin文件读取实际运算结果
-    golden = np.fromfile(golden, dtype=np.float16) # 从bin文件读取预期运算结果
-    result = np.abs(real_result - golden) # 计算运算结果和预期结果偏差
-    deno = np.maximum(np.abs(real_result), np.abs(golden))  # 获取最大值并组成新数组
-    result_atol = np.less_equal(result, loss) # 计算绝对误差
-    result_rtol = np.less_equal(result / np.add(deno, minimum), loss) # 计算相对误差
-    if not result_rtol.all() and not result_atol.all():
-        if np.sum(result_rtol == False) > real_result.size * loss and np.sum(result_atol == False) > real_result.size * loss: # 误差超出预期时返回打印错误，返回对比失败
-            print("[ERROR] result error")
-            return False
+
+def read_bin(path, is_f16):
+    with open(path, "rb") as f:
+        data = f.read()
+    item = 2 if is_f16 else 4
+    n = len(data) // item
+    fmt = '<%d%s' % (n, 'e' if is_f16 else 'f')
+    return list(struct.unpack(fmt, data[:n * item]))
+
+
+def verify_result(real_path, golden_path, dtype):
+    if dtype not in TOL:
+        print("[ERROR] unsupported dtype: %s" % dtype)
+        return False
+    is_f16 = (dtype == 'float16')
+    rtol = TOL[dtype]
+    atol = TOL[dtype]
+
+    real = read_bin(real_path, is_f16)
+    golden = read_bin(golden_path, is_f16)
+    if len(real) != len(golden):
+        print("[ERROR] size mismatch: real=%d golden=%d" % (len(real), len(golden)))
+        return False
+
+    n = len(real)
+    n_bad = 0
+    max_abs = 0.0
+    max_rel = 0.0
+    for r, g in zip(real, golden):
+        diff = abs(r - g)
+        deno = abs(g) + 1e-12
+        max_abs = max(max_abs, diff)
+        max_rel = max(max_rel, diff / deno)
+        if diff > atol + rtol * abs(g):
+            n_bad += 1
+
+    print("[INFO]  dtype=%s count=%d max_abs=%.3e max_rel=%.3e (atol=rtol=%.1e)"
+          % (dtype, n, max_abs, max_rel, atol))
+
+    if n_bad != 0:
+        print("[ERROR] result error: %d/%d elements out of tolerance" % (n_bad, n))
+        return False
     print("test pass")
     return True
 
+
 if __name__ == '__main__':
-    verify_result(sys.argv[1],sys.argv[2])
+    if len(sys.argv) < 4:
+        print("Usage: verify_result.py <real.bin> <golden.bin> <float16|float32>")
+        sys.exit(1)
+    ok = verify_result(sys.argv[1], sys.argv[2], sys.argv[3])
+    sys.exit(0 if ok else 1)
