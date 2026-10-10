@@ -24,8 +24,9 @@ $$ \text{GELU}(x) = x \cdot \Phi(x) = 0.5 \cdot x \cdot \left(1 + \text{erf}\lef
 ```
 .
 ├── CMakeLists.txt            # 算子工程顶层 CMake
-├── CMakePresets.json         # 编译配置（芯片型号、CANN 路径等）
-├── build.sh                  # 编译入口脚本
+├── CMakePresets.json         # 编译配置（芯片型号 ascend910b、CANN 路径等）
+├── build.sh                  # 编译入口脚本（工程标准入口）
+├── build_910b.sh             # 910B 一键编译脚本（自动定位 CANN + 核对配置 + 编译 + 报产物）
 ├── gelu.json                 # 算子原型定义（msopgen 输入）
 ├── cmake/                    # 工程编译框架脚本（msopgen 生成，无需修改）
 ├── framework/                # 算子适配插件（TF），单算子调用不依赖
@@ -37,6 +38,7 @@ $$ \text{GELU}(x) = x \cdot \Phi(x) = 0.5 \cdot x \cdot \left(1 + \text{erf}\lef
 │   └── gelu.cpp              #   Ascend C 核函数（核心计算）
 └── test/
     ├── reference_gelu.py     # 纯 Python 参考实现 + 精度自检（无需 CANN）
+    ├── compare_with_official.py  # 官方样例公式 vs 本实现的精度对照
     └── AclNNInvocation/      # 基于 aclnn 的端到端调用样例（需真实昇腾环境）
 ```
 
@@ -80,28 +82,33 @@ Kernel 内部对 `float16` 输入统一 `Cast` 到 `float32` 完成全部数学�
 ## 四、编译与部署
 
 > 需要已安装 CANN Toolkit（含 `Ascend C` 编译器）。以下步骤在装有昇腾环境的机器上执行。
+> 本工程已按 **昇腾 910B**（`ascend910b`）配套：`CMakePresets.json` 的 `ASCEND_COMPUTE_UNIT = ascend910b`，算子原型 `AddConfig("ascend910b")`。
 
-### 1. 修改编译配置
-
-编辑 [CMakePresets.json](file:///workspace/CMakePresets.json)，将 `ASCEND_CANN_PACKAGE_PATH` 改为本机 CANN 实际安装路径；按需修改 `ASCEND_COMPUTE_UNIT`（芯片型号）与 `vendor_name`。
-
-### 2. 编译算子工程
+### 1. 编译算子工程（推荐一键脚本）
 
 ```bash
 cd /workspace
+./build_910b.sh
+```
+
+`build_910b.sh` 会自动完成：定位并加载 CANN 环境 → 核对/同步 `CMakePresets.json`（CANN 路径 + `ascend910b`）→ 调用 `build.sh` 编译 → 打印生成的算子包。
+
+若你已手动配好环境与 `CMakePresets.json`，也可直接用工程标准入口：
+
+```bash
 ./build.sh
 ```
 
 编译成功后会在 `build_out/` 下生成算子安装包 `custom_opp_<os>_<arch>.run`。
 
-### 3. 安装算子包
+### 2. 安装算子包
 
 ```bash
 cd build_out
 ./custom_opp_<os>_<arch>.run
 ```
 
-### 4. 端到端调用验证（可选，需真实昇腾环境）
+### 3. 端到端调用验证（可选，需真实昇腾环境）
 
 ```bash
 cd test/AclNNInvocation
@@ -127,6 +134,22 @@ python3 test/reference_gelu.py
 | x | 0 | 1 | -1 | 2 | -2 |
 |---|---|---|---|---|---|
 | GELU(x) | 0.0 | 0.8413 | -0.1587 | 1.9545 | -0.0455 |
+
+### 与官方样例公式的对照
+
+[compare_with_official.py](file:///workspace/test/compare_with_official.py) 扫描 `x ∈ [-20,20]`，对比不同方案的精度：
+
+```bash
+python3 test/compare_with_official.py
+```
+
+| 方案 | max 绝对误差 | 是否达标 (fp32 < 1e-4) |
+|---|---|---|
+| 官方 GeluSample（sigmoid 近似） | 7.46e-4 | ❌ FAIL |
+| 常见 tanh 近似 | 4.73e-4 | ❌ FAIL |
+| **本工程实现（erf，A&S 7.1.26）** | **2.11e-7** | ✅ **PASS** |
+
+即：官方样例的近似公式无法满足赛题 1e-4 精度要求，本工程改为 erf 精确方案。
 
 ---
 
