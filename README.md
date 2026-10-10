@@ -1,5 +1,7 @@
 # GELU 自定义算子（华为昇腾 CANN / Ascend C）
 
+[![Build](https://github.com/mw2wbyys6t-sudo/CANN-/actions/workflows/build.yml/badge.svg)](https://github.com/mw2wbyys6t-sudo/CANN-/actions/workflows/build.yml)
+
 本仓库为 GELU 算子赛题的完整算子工程实现，基于 **Ascend C** 编程语言开发，包含算子原型定义、Tiling 切分、Kernel 核函数、工程编译脚本与端到端精度验证。
 
 ---

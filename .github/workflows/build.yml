@@ -1,0 +1,45 @@
+name: Build
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Shell & Python syntax checks
+        run: |
+          set -e
+          for f in build.sh build_910b.sh scripts/install.sh scripts/upgrade.sh test/AclNNInvocation/run.sh; do
+            bash -n "$f" && echo "OK  $f"
+          done
+          python3 -m py_compile \
+            test/reference_gelu.py \
+            test/compare_with_official.py \
+            test/AclNNInvocation/scripts/gen_data.py \
+            test/AclNNInvocation/scripts/verify_result.py
+
+      - name: Config sanity (JSON / soc version)
+        run: |
+          python3 -c "import json; json.load(open('gelu.json')); cfg=json.load(open('CMakePresets.json')); unit=cfg['configurePresets'][0]['cacheVariables']['ASCEND_COMPUTE_UNIT']['value']; assert unit=='ascend910b', unit; print('JSON OK, ASCEND_COMPUTE_UNIT =', unit)"
+
+      - name: GELU precision self-check (erf vs golden)
+        run: python3 test/reference_gelu.py
+
+      - name: Reference comparison (official formula vs this impl)
+        run: python3 test/compare_with_official.py
