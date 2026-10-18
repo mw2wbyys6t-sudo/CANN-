@@ -1,0 +1,13 @@
+# 上传的临时文件（不纳入版本管理）
+/.uploads/
+
+# 构建产物
+/build_out/
+build/
+__pycache__/
+*.pyc
+*.pyo
+
+# 测试运行时生成的数据
+test/AclNNInvocation/input/
+test/AclNNInvocation/output/

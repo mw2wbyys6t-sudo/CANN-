@@ -6,6 +6,15 @@
 
 ---
 
+## 作业索引
+
+| 周次 | 作业内容 | 位置 |
+|---|---|---|
+| 第二周 | GELU 算子（华为昇腾 CANN / Ascend C 自定义算子） | 本仓库根目录（`op_host/`、`op_kernel/`、`build_910b.sh` 等） |
+| 第三周 | 《开源创新思维》开源合规与许可证（ScanCode 扫描 pip 26.2.1） | [week3/](./week3/README.md) · [原始 docx](./week3/F25015349-朱胤陈-开源合规与许可证.docx) |
+
+---
+
 ## 一、算子功能
 
 对输入张量的每个元素应用 GELU（Gaussian Error Linear Unit）激活函数。
@@ -160,3 +169,16 @@ python3 test/compare_with_official.py
 - 算子原型 / Tiling：[op_host/gelu.cpp](file:///workspace/op_host/gelu.cpp)
 - TilingData 定义：[op_host/gelu_tiling.h](file:///workspace/op_host/gelu_tiling.h)
 - Ascend C 核函数：[op_kernel/gelu.cpp](file:///workspace/op_kernel/gelu.cpp)
+
+---
+
+## 七、第三周作业（开源合规与许可证）
+
+本仓库同时归档课程《开源创新思维》第三周作业。
+
+- **主题**：使用 **ScanCode Toolkit 32.5.0** 对 **pip 26.2.1** 源码包进行开源许可证合规扫描，覆盖其 `_vendor` 目录下 18 个内置（vendored）第三方组件，分析许可证分布、兼容性与合规义务，并给出风险与改进建议。
+- **主要结论**：pip 主体为 MIT；内置组件以 MIT / Apache-2.0 / BSD-2/3-Clause 等宽松许可证为主，与 MIT 兼容，可整体再分发，核心义务为“保留声明、标注修改”；工具文件级覆盖率仅 15%，存在组合表达式与假阳性需人工复核，建议接入 CI 并输出 SPDX/CycloneDX。
+- **文件**：
+  - 报告说明（Markdown，可在线阅读）：[week3/README.md](./week3/README.md)
+  - 原始提交文档：[week3/F25015349-朱胤陈-开源合规与许可证.docx](./week3/F25015349-朱胤陈-开源合规与许可证.docx)
+  - 报告截图：[week3/media/report.png](./week3/media/report.png)
