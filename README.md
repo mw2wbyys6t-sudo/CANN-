@@ -2,6 +2,12 @@
 
 [![Build](https://github.com/mw2wbyys6t-sudo/CANN-/actions/workflows/build.yml/badge.svg)](https://github.com/mw2wbyys6t-sudo/CANN-/actions/workflows/build.yml)
 
+**课程信息**
+
+| 课程 | 姓名 | 学号 | 班级 | 指导教师 | 学期 | 院校 |
+|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
+| 开源创新思维 | 朱胤陈 | F25015349 | F250118 | 祝欣蓉 | 2026-2027 秋季学期 | 上海杉达学院 |
+
 本仓库为 GELU 算子赛题的完整算子工程实现，基于 **Ascend C** 编程语言开发，包含算子原型定义、Tiling 切分、Kernel 核函数、工程编译脚本与端到端精度验证。
 
 ---
